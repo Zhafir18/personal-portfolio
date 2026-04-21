@@ -3,47 +3,41 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
-  build:
-    runs-on: self-hosted
-    strategy:
-      matrix:
-        node-version: [22.x]
-    steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    - name: Install dependencies
-      run: npm install
-    - name: Build TypeScript
-      run: npm run build
-
   deploy:
-    needs: build
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
-    - name: Build Docker image
-      run: docker build . -t zhafir-portfolio:latest
+    - name: Deploy to VPS via SSH
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          # Masuk ke folder project (asumsi folder sudah ada)
+          mkdir -p ~/portfolio && cd ~/portfolio
+          
+          # Kamu bisa mengirimkan file Dockerfile & source code via git pull di server
+          # Atau jika repo privat, pastikan server punya akses git.
+          cd ~/path-ke-project-kamu
+          git pull origin main
 
-    - name: Deploy Container
-      run: |
-        # Hapus kontainer lama
-        docker stop zhafir-portfolio || true
-        docker rm zhafir-portfolio || true
-        
-        # Jalankan kontainer baru dengan menggunakan --env-file dari path server Anda
-        docker run -d \
-          --name zhafir-portfolio \
-          -p 6969:6969 \
-          zhafir-portfolio:latest
+          # Build image secara lokal di server
+          docker build -t zhafir-portfolio:latest .
 
-    - name: Cleanup old images
-      run: docker image prune -f
+          # Hapus kontainer lama
+          docker stop zhafir-portfolio || true
+          docker rm zhafir-portfolio || true
+
+          # Jalankan kontainer baru
+          docker run -d \
+            --name zhafir-portfolio \
+            -p 6969:6969 \
+            --restart always \
+            zhafir-portfolio:latest
+
+          # Bersihkan image lama yang tidak terpakai (menghemat disk 60GB kamu)
+          docker image prune -f
