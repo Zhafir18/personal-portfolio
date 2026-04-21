@@ -17,27 +17,34 @@ jobs:
         username: ${{ secrets.USERNAME }}
         key: ${{ secrets.SSH_KEY }}
         script: |
-          # Masuk ke folder project (asumsi folder sudah ada)
-          mkdir -p ~/portfolio && cd ~/portfolio
-          
-          # Kamu bisa mengirimkan file Dockerfile & source code via git pull di server
-          # Atau jika repo privat, pastikan server punya akses git.
-          cd ~/path-ke-project-kamu
+          # 1. Masuk ke direktori home
+          cd ~
+
+          # 2. Cek apakah folder project sudah ada, jika belum lakukan clone
+          # Ganti URL di bawah dengan URL Repository GitHub kamu!
+          if [ ! -d "portfolio" ]; then
+            git clone https://github.com/username_kamu/repo_kamu.git portfolio
+          fi
+
+          # 3. Masuk ke folder project
+          cd ~/portfolio
+
+          # 4. Ambil perubahan kode terbaru
           git pull origin main
 
-          # Build image secara lokal di server
+          # 5. Build Image (Proses ini dilakukan di VPS)
+          # Pastikan SWAP 4GB sudah aktif agar tidak freeze
           docker build -t zhafir-portfolio:latest .
 
-          # Hapus kontainer lama
+          # 6. Re-deploy Container
           docker stop zhafir-portfolio || true
           docker rm zhafir-portfolio || true
 
-          # Jalankan kontainer baru
           docker run -d \
             --name zhafir-portfolio \
             -p 6969:6969 \
             --restart always \
             zhafir-portfolio:latest
 
-          # Bersihkan image lama yang tidak terpakai (menghemat disk 60GB kamu)
+          # 7. Pembersihan Disk 60GB
           docker image prune -f
