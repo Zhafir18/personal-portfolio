@@ -5,38 +5,41 @@ on:
     branches: [ "main" ]
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  build-and-deploy:
+    runs-on: ubuntu-latest # Build dilakukan di server GitHub (RAM 7GB)
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-    - name: Deploy to VPS via SSH
+    - name: Build Docker Image
+      run: docker build -t zhafir-portfolio:latest .
+
+    - name: Save Docker Image to Tarball
+      run: docker save zhafir-portfolio:latest > zhafir-portfolio.tar
+
+    - name: Transfer Image to VPS
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        source: "zhafir-portfolio.tar"
+        target: "~/" # Dikirim ke direktori home VPS
+
+    - name: Load and Deploy on VPS
       uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USERNAME }}
         key: ${{ secrets.SSH_KEY }}
         script: |
-          # 1. Masuk ke direktori home
-          cd ~
+          # 1. Load image dari file tar yang dikirim
+          docker load < ~/zhafir-portfolio.tar
+          
+          # 2. Hapus file tar untuk menghemat storage
+          rm ~/zhafir-portfolio.tar
 
-          # 2. Cek apakah folder project sudah ada, jika belum lakukan clone
-          # Ganti URL di bawah dengan URL Repository GitHub kamu!
-          if [ ! -d "portfolio" ]; then
-            git clone https://github.com/username_kamu/repo_kamu.git portfolio
-          fi
-
-          # 3. Masuk ke folder project
-          cd ~/portfolio
-
-          # 4. Ambil perubahan kode terbaru
-          git pull origin main
-
-          # 5. Build Image (Proses ini dilakukan di VPS)
-          # Pastikan SWAP 4GB sudah aktif agar tidak freeze
-          docker build -t zhafir-portfolio:latest .
-
-          # 6. Re-deploy Container
+          # 3. Re-deploy Container
           docker stop zhafir-portfolio || true
           docker rm zhafir-portfolio || true
 
@@ -46,5 +49,5 @@ jobs:
             --restart always \
             zhafir-portfolio:latest
 
-          # 7. Pembersihan Disk 60GB
+          # 4. Bersihkan image lama agar disk 60GB tidak penuh
           docker image prune -f
