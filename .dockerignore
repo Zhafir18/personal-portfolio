@@ -4,7 +4,5 @@ dist
 .github
 *.md
 Dockerfile
-nginx.conf
 .dockerignore
 .vscode
-package-lock.json
