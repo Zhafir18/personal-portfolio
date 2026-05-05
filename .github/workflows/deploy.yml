@@ -23,6 +23,7 @@ jobs:
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USERNAME }}
         key: ${{ secrets.SSH_KEY }}
+        port: 2204
         source: "zhafir-portfolio.tar"
         target: "~/" # Dikirim ke direktori home VPS
 
@@ -32,6 +33,7 @@ jobs:
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USERNAME }}
         key: ${{ secrets.SSH_KEY }}
+        port: 2204
         script: |
           # 1. Load image dari file tar yang dikirim
           docker load < ~/zhafir-portfolio.tar
